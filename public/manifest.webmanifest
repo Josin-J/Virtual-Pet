@@ -1,0 +1,9 @@
+{
+  "name": "Pip — your pocket ghost",
+  "short_name": "Pip",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f4ff",
+  "theme_color": "#5b3df5",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

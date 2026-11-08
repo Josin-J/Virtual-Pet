@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# Local SQLite data
+data/
+
+# Logs & temp files
+*.log
+.DS_Store
+Thumbs.db

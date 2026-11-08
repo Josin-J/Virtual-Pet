@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pip Overlay</title>
+  <style>
+    /* ── Transparent full-screen overlay ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100vw; height: 100vh;
+      background: transparent;
+      overflow: hidden;
+      cursor: default;
+      user-select: none;
+      -webkit-app-region: no-drag;
+    }
+
+    /* ── Pip container ── */
+    #pip {
+      position: fixed;
+      width: 120px; height: 120px;
+      left: 0; top: 0;
+      will-change: transform;
+      cursor: grab;
+      filter: drop-shadow(0 8px 20px rgba(0,0,0,0.25));
+      z-index: 10;
+    }
+    #pip:active { cursor: grabbing; }
+    #pip svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+    /* ── Sparkle / stardust trail particles ── */
+    .sparkle {
+      position: fixed;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 5;
+      animation: sparkle-fade 1.2s ease-out forwards;
+    }
+    @keyframes sparkle-fade {
+      0%   { opacity: 0.9; transform: scale(1); }
+      100% { opacity: 0;   transform: scale(0.2) translateY(-20px); }
+    }
+
+    /* ── Mood overlay effects (Black & White monochrome) ── */
+    .mood-particle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 4;
+      opacity: 0;
+      color: #111111;
+      filter: grayscale(100%) contrast(200%);
+    }
+    .mood-particle.heart {
+      font-size: 18px;
+      animation: float-up 2s ease-out forwards;
+    }
+    .mood-particle.anger-puff {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #111111;
+      animation: puff-burst 0.8s ease-out forwards;
+    }
+    .mood-particle.surprise-star {
+      font-size: 16px;
+      animation: star-burst 1s ease-out forwards;
+    }
+    .mood-particle.sad-tear {
+      font-size: 14px;
+      animation: tear-fall 2.5s ease-in forwards;
+    }
+
+    @keyframes float-up {
+      0%   { opacity: 0.9; transform: translateY(0) scale(1); }
+      100% { opacity: 0;   transform: translateY(-80px) scale(0.5); }
+    }
+    @keyframes puff-burst {
+      0%   { opacity: 0.8; transform: scale(0.3); }
+      50%  { opacity: 0.6; transform: scale(1.5); }
+      100% { opacity: 0;   transform: scale(2); }
+    }
+    @keyframes star-burst {
+      0%   { opacity: 1; transform: scale(0.5) rotate(0deg); }
+      100% { opacity: 0; transform: scale(1.5) rotate(180deg) translateY(-40px); }
+    }
+    @keyframes tear-fall {
+      0%   { opacity: 0.7; transform: translateY(0); }
+      100% { opacity: 0;   transform: translateY(60px); }
+    }
+
+    /* ── Speech bubble ── */
+    #speech-bubble {
+      position: fixed;
+      z-index: 15;
+      padding: 8px 14px;
+      max-width: 200px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #1d1b26;
+      font: 500 13px/1.4 system-ui, -apple-system, sans-serif;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -100%) scale(0.9);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      white-space: normal;
+      text-align: center;
+    }
+    #speech-bubble.visible {
+      opacity: 1;
+      transform: translate(-50%, -100%) scale(1);
+    }
+    #speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px 6px 0;
+      border-style: solid;
+      border-color: rgba(255, 255, 255, 0.95) transparent;
+      display: block;
+      width: 0;
+    }
+
+    /* ── Context Menu ── */
+    #context-menu {
+      position: fixed;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      padding: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      font: 500 13px system-ui, -apple-system, sans-serif;
+      color: #1d1b26;
+    }
+    #context-menu button {
+      background: none;
+      border: 0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #context-menu button:hover {
+      background: #5b3df5;
+      color: #fff;
+    }
+    #context-menu .sep {
+      height: 1px;
+      background: rgba(0, 0, 0, 0.08);
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="speech-bubble"></div>
+  <div id="pip"></div>
+  <div id="context-menu">
+    <button data-act="pat"><span>🤗</span> Pat Pip</button>
+    <button data-act="poke"><span>😠</span> Poke</button>
+    <button data-act="boo"><span>😮</span> Boo!</button>
+    <button data-act="comfort"><span>🥺</span> Comfort</button>
+    <div class="sep"></div>
+    <button data-act="say"><span>💬</span> Say something</button>
+    <button data-act="reset"><span>📌</span> Reset Position</button>
+  </div>
+  <script type="module">
+    // ──────────────────────────────────────────────────────────────
+    //  Pip Desktop Overlay – autonomous roaming with full animations
+    // ──────────────────────────────────────────────────────────────
+
+    // ── Inline Pip SVG (same as pip.js) ────────────────────────────
+    const INK = '#111';
+    const line = (w = 4.5) => `fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
+    const star = (cx, cy, ro, ri) =>
+      Array.from({ length: 10 }, (_, i) => {
+        const r = i % 2 ? ri : ro;
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
+      }).join(' ');
+    const sparkle = (x, y, s) =>
+      `<path d="M${x} ${y - s}Q${x} ${y} ${x + s} ${y}Q${x} ${y} ${x} ${y + s}Q${x} ${y} ${x - s} ${y}Q${x} ${y} ${x} ${y - s}Z" fill="${INK}"/>`;
+    const armSvg = (d) =>
+      `<path d="${d}" fill="none" stroke="${INK}" stroke-width="16" stroke-linecap="round"/>` +
+      `<path d="${d}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>`;
+    const puff = (x, y) =>
+      [[-7, 2], [7, 2], [0, -6]].map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="6" fill="#fff" stroke="${INK}" stroke-width="3"/>`).join('') +
+      [[-7, 2], [7, 2], [0, -6]].map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="5" fill="#fff"/>`).join('');
+    const tear = (x, y) => `<path d="M${x} ${y}Q${x - 5} ${y + 8} ${x} ${y + 12}Q${x + 5} ${y + 8} ${x} ${y}Z" fill="#fff" stroke="${INK}" stroke-width="2.5"/>`;
+
+    const FACES = {
+      happy: {
+        face:
+          `<path d="M85 119Q95 106 105 119M135 119Q145 106 155 119" ${line()}/>` +
+          `<path d="M106 134Q120 156 134 134Z" fill="${INK}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+          `<path d="M76 131l-3 6M83 131l-3 6M157 131l3 6M164 131l3 6" ${line(2.5)}/>`,
+        arms: armSvg('M62 160Q34 160 28 130') + armSvg('M178 160Q206 160 212 130'),
+        extras: sparkle(26, 64, 10) + sparkle(214, 76, 8) + sparkle(24, 182, 6) + sparkle(216, 168, 7),
+      },
+      sad: {
+        face:
+          `<circle cx="95" cy="123" r="5.5" fill="${INK}"/><circle cx="145" cy="123" r="5.5" fill="${INK}"/>` +
+          `<path d="M84 111L104 105M156 111L136 105" ${line(3.5)}/>` +
+          `<path d="M108 147Q120 137 132 147" ${line()}/>` + tear(91, 131) + tear(149, 131),
+        arms: armSvg('M62 160Q50 176 54 192') + armSvg('M178 160Q190 176 186 192'),
+        extras:
+          `<path d="M98 29a10 10 0 0 1 2-19a15 15 0 0 1 27-3a11 11 0 0 1 11 22Z" fill="#fff" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/>` +
+          `<path d="M108 35v6M120 37v6M132 35v6" ${line(3)}/>`,
+      },
+      angry: {
+        face:
+          `<path d="M82 106L106 118M158 106L134 118" ${line(5)}/>` +
+          `<ellipse cx="96" cy="127" rx="6" ry="4.5" fill="${INK}"/><ellipse cx="144" cy="127" rx="6" ry="4.5" fill="${INK}"/>` +
+          `<path d="M108 145Q114 138 120 145Q126 138 132 145" ${line(3.5)}/>`,
+        arms: armSvg('M64 158Q100 178 152 160') + armSvg('M176 158Q140 180 90 162'),
+        extras: puff(34, 62) + puff(206, 62),
+      },
+      surprised: {
+        face:
+          `<path d="M84 100Q95 92 106 100M134 100Q145 92 156 100" ${line(3.5)}/>` +
+          `<circle cx="95" cy="121" r="10" fill="#fff" stroke="${INK}" stroke-width="4"/><circle cx="145" cy="121" r="10" fill="#fff" stroke="${INK}" stroke-width="4"/>` +
+          `<circle cx="96" cy="122" r="4" fill="${INK}"/><circle cx="144" cy="122" r="4" fill="${INK}"/>` +
+          `<ellipse cx="120" cy="144" rx="6" ry="8.5" fill="${INK}"/>`,
+        arms: armSvg('M62 158Q32 158 24 126') + armSvg('M178 158Q208 158 216 126'),
+        extras:
+          `<path d="M198 16v17M216 24v12" ${line(7)}/><circle cx="198" cy="44" r="4.5" fill="${INK}"/><circle cx="216" cy="46" r="4" fill="${INK}"/>`,
+      },
+    };
+
+    const BODY = 'M60 112C60 66 88 44 120 44C152 44 180 66 180 112L180 168C180 180 170 186 162 178C154 170 146 184 136 188C126 192 118 180 108 186C98 192 90 182 82 186C72 190 60 182 60 168Z';
+
+    function pipSvg(mood) {
+      const f = FACES[mood] || FACES.happy;
+      return (
+        `<svg viewBox="0 0 240 230" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">` +
+        `<g class="pip-float">` +
+        `<path d="${BODY}" fill="#fff" stroke="${INK}" stroke-width="4.5" stroke-linejoin="round"/>` +
+        f.arms +
+        `<path d="M54 108C50 22 190 22 186 108" ${line(7)}/>` +
+        `<ellipse cx="52" cy="108" rx="13" ry="21" fill="${INK}"/><ellipse cx="188" cy="108" rx="13" ry="21" fill="${INK}"/>` +
+        `<polygon points="${star(52, 108, 9, 3.8)}" fill="#fff"/>` +
+        f.face +
+        f.extras +
+        `</g></svg>`
+      );
+    }
+
+    // ── State ────────────────────────────────────────────────────
+    const pipEl = document.getElementById('pip');
+    const W = () => window.innerWidth;
+    const H = () => window.innerHeight;
+    const PIP_SIZE = 120;
+    const PAD = 20;
+
+    let posX = Math.random() * (W() - PIP_SIZE - PAD * 2) + PAD;
+    let posY = Math.random() * (H() - PIP_SIZE - PAD * 2) + PAD;
+    let velX = (Math.random() > 0.5 ? 1 : -1) * (30 + Math.random() * 20);
+    let velY = (Math.random() > 0.5 ? 1 : -1) * (20 + Math.random() * 20);
+    let targetAngle = Math.atan2(velY, velX);  // current heading for organic curves
+    let currentMood = 'happy';
+    let isDragging = false;
+    let dragStartX, dragStartY, dragInitX, dragInitY, dragMoved;
+    let lastTick = 0;
+    let sparkleTimer = 0;    // time since last sparkle
+    let idleTimer = 0;       // time moving before next idle pause
+    let idlePause = 0;       // remaining idle pause time
+    let nextTurnTime = 0;    // time until next organic direction change
+    let moodAnimCooldown = 0;
+
+    // ── Mood cycling (desktop is standalone, cycles automatically) ──
+    const MOODS = ['happy', 'sad', 'angry', 'surprised'];
+    let moodIndex = 0;
+    let moodChangeTimer = 0;
+    const MOOD_DURATION = 15; // seconds per mood
+
+    // Initial render
+    pipEl.innerHTML = pipSvg(currentMood);
+
+    // ── Mouse pass-through logic ────────────────────────────────
+    const api = window.pipDesktop;
+
+    pipEl.addEventListener('mouseenter', () => {
+      api?.setIgnoreMouse(false);
+    });
+    pipEl.addEventListener('mouseleave', () => {
+      if (!isDragging) api?.setIgnoreMouse(true);
+    });
+
+    // ── Drag handling ────────────────────────────────────────────
+    pipEl.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      dragMoved = false;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      dragInitX = posX;
+      dragInitY = posY;
+      pipEl.setPointerCapture(e.pointerId);
+      api?.setIgnoreMouse(false);
+    });
+
+    pipEl.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      if (Math.hypot(dx, dy) > 4) dragMoved = true;
+      posX = dragInitX + dx;
+      posY = dragInitY + dy;
+      applyTransform();
+    });
+
+    // ── Speech bubble & Quotes ────────────────────────────────────
+    const bubbleEl = document.getElementById('speech-bubble');
+    const menuEl = document.getElementById('context-menu');
+    let bubbleTimer = null;
+    let menuOpen = false;
+
+    const GENTLE_QUOTES = [
+      "Take a slow, deep breath in… and out. 🌿",
+      "Remember to drink some water! 💧",
+      "One small step at a time. ✨",
+      "You're doing great today. 💖",
+      "Rest your eyes for 20 seconds. 👀",
+      "I'm right here with you! 👻",
+      "Be gentle with yourself.",
+      "Stretch your shoulders a little."
+    ];
+
+    function showBubble(text, duration = 4500) {
+      bubbleEl.textContent = text;
+      bubbleEl.style.left = (posX + PIP_SIZE / 2) + 'px';
+      bubbleEl.style.top = (posY - 12) + 'px';
+      bubbleEl.classList.add('visible');
+      clearTimeout(bubbleTimer);
+      bubbleTimer = setTimeout(() => bubbleEl.classList.remove('visible'), duration);
+    }
+
+    function setMoodDirectly(m) {
+      currentMood = m;
+      pipEl.innerHTML = pipSvg(m);
+      triggerAcrobatics(m);
+      spawnMoodParticle(m, posX + PIP_SIZE / 2, posY + PIP_SIZE / 2);
+    }
+
+    // Context menu handlers
+    pipEl.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      menuOpen = true;
+      api?.setIgnoreMouse(false);
+      menuEl.style.left = Math.min(e.clientX, W() - 170) + 'px';
+      menuEl.style.top = Math.min(e.clientY, H() - 200) + 'px';
+      menuEl.style.display = 'flex';
+    });
+
+    menuEl.addEventListener('mouseenter', () => api?.setIgnoreMouse(false));
+    menuEl.addEventListener('mouseleave', () => {
+      if (menuOpen) {
+        menuEl.style.display = 'none';
+        menuOpen = false;
+        api?.setIgnoreMouse(true);
+      }
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+      if (menuOpen && !menuEl.contains(e.target)) {
+        menuEl.style.display = 'none';
+        menuOpen = false;
+        api?.setIgnoreMouse(true);
+      }
+    });
+
+    menuEl.querySelectorAll('button').forEach((b) => {
+      b.addEventListener('click', () => {
+        const act = b.dataset.act;
+        menuEl.style.display = 'none';
+        menuOpen = false;
+        api?.setIgnoreMouse(true);
+        if (act === 'pat') { setMoodDirectly('happy'); showBubble("Hehe, thanks! 💖"); }
+        else if (act === 'poke') { setMoodDirectly('angry'); showBubble("Hey! Stop poking me! 😠"); }
+        else if (act === 'boo') { setMoodDirectly('surprised'); showBubble("Eek! You scared me! 😮"); }
+        else if (act === 'comfort') { setMoodDirectly('sad'); showBubble("I'm right here with you. 🥺"); }
+        else if (act === 'say') { const q = GENTLE_QUOTES[Math.floor(Math.random() * GENTLE_QUOTES.length)]; showBubble(q); }
+        else if (act === 'reset') { posX = W()/2 - PIP_SIZE/2; posY = H()/2 - PIP_SIZE/2; velX = 40; velY = 30; }
+      });
+    });
+
+    const onPointerUp = (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      try { pipEl.releasePointerCapture(e.pointerId); } catch {}
+
+      if (dragMoved) {
+        // Fling with inertia
+        velX = (e.clientX - dragStartX) * 2;
+        velY = (e.clientY - dragStartY) * 2;
+        const speed = Math.hypot(velX, velY);
+        if (speed < 30) {
+          velX = (Math.random() > 0.5 ? 1 : -1) * 40;
+          velY = (Math.random() > 0.5 ? 1 : -1) * 30;
+        } else if (speed > 300) {
+          velX = (velX / speed) * 300;
+          velY = (velY / speed) * 300;
+        }
+      } else if (e.button === 0 && !menuOpen) {
+        // Left click without dragging = gentle pat!
+        setMoodDirectly('happy');
+        showBubble("✨ *happy ghost noises* ✨", 2500);
+      }
+
+      // Re-enable pass-through after a short delay
+      setTimeout(() => {
+        if (menuOpen) return;
+        const rect = pipEl.getBoundingClientRect();
+        const mx = e.clientX, my = e.clientY;
+        if (mx < rect.left || mx > rect.right || my < rect.top || my > rect.bottom) {
+          api?.setIgnoreMouse(true);
+        }
+      }, 50);
+    };
+
+    pipEl.addEventListener('pointerup', onPointerUp);
+    pipEl.addEventListener('pointercancel', onPointerUp);
+
+    // Reset position from tray
+    api?.onResetPosition(() => {
+      posX = W() / 2 - PIP_SIZE / 2;
+      posY = H() / 2 - PIP_SIZE / 2;
+      velX = 40; velY = 30;
+      targetAngle = Math.atan2(velY, velX);
+    });
+
+    // Summon to cursor (Ctrl+Alt+P)
+    api?.onSummon((pt) => {
+      const targetX = Math.max(PAD, Math.min(pt.x - PIP_SIZE / 2, W() - PIP_SIZE - PAD));
+      const targetY = Math.max(PAD, Math.min(pt.y - PIP_SIZE / 2, H() - PIP_SIZE - PAD));
+      const dx = targetX - posX;
+      const dy = targetY - posY;
+      targetAngle = Math.atan2(dy, dx);
+      const dist = Math.hypot(dx, dy);
+      const boostSpeed = Math.min(Math.max(dist * 1.8, 150), 450);
+      velX = Math.cos(targetAngle) * boostSpeed;
+      velY = Math.sin(targetAngle) * boostSpeed;
+      idlePause = 0;
+      setMoodDirectly('happy');
+      showBubble("Here I am! ✨", 3000);
+    });
+
+    // Double-click acrobatics
+    pipEl.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      setMoodDirectly('happy');
+      showBubble("Wheeee! 🌀", 2500);
+    });
+
+    // ── Sparkle trail (Black & White monochrome) ─────────────────
+    const SPARKLE_SHADES = [
+      { bg: '#ffffff', border: '#111111', shadow: 'rgba(0, 0, 0, 0.4)' },
+      { bg: '#111111', border: '#ffffff', shadow: 'rgba(255, 255, 255, 0.6)' },
+      { bg: '#ffffff', border: 'transparent', shadow: 'rgba(0, 0, 0, 0.25)' },
+      { bg: '#2b2b2b', border: '#ffffff', shadow: 'rgba(0, 0, 0, 0.45)' },
+      { bg: '#f0f0f0', border: '#333333', shadow: 'rgba(0, 0, 0, 0.3)' },
+    ];
+
+    function spawnSparkle(x, y) {
+      const el = document.createElement('div');
+      el.className = 'sparkle';
+      const shade = SPARKLE_SHADES[Math.floor(Math.random() * SPARKLE_SHADES.length)];
+      const size = 4 + Math.random() * 6;
+      el.style.cssText = `
+        left: ${x + Math.random() * 30 - 15}px;
+        top: ${y + Math.random() * 30 - 15}px;
+        width: ${size}px; height: ${size}px;
+        background: ${shade.bg};
+        border: 1px solid ${shade.border};
+        box-shadow: 0 0 ${size * 1.5}px ${shade.shadow};
+      `;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1200);
+    }
+
+    // ── Mood particles (Black & White monochrome) ────────────────
+    function spawnMoodParticle(mood, x, y) {
+      const el = document.createElement('div');
+      el.className = 'mood-particle';
+      const ox = (Math.random() - 0.5) * 60;
+      const oy = (Math.random() - 0.5) * 40;
+
+      switch (mood) {
+        case 'happy':
+          el.classList.add('heart');
+          el.textContent = ['✦', '✧', '★', '☆', '✨'][Math.floor(Math.random() * 5)];
+          break;
+        case 'angry':
+          el.classList.add('anger-puff');
+          break;
+        case 'surprised':
+          el.classList.add('surprise-star');
+          el.textContent = ['✦', '⚡', '✧', '•'][Math.floor(Math.random() * 4)];
+          break;
+        case 'sad':
+          el.classList.add('sad-tear');
+          el.textContent = ['•', '°', '·'][Math.floor(Math.random() * 3)];
+          break;
+      }
+      el.style.left = (x + ox) + 'px';
+      el.style.top = (y + oy) + 'px';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2500);
+    }
+
+    // ── Acrobatic mood animations ─────────────────────────────
+    function triggerAcrobatics(mood) {
+      if (moodAnimCooldown > 0) return;
+      moodAnimCooldown = 5; // seconds cooldown
+
+      switch (mood) {
+        case 'happy':
+          // 360 degree spin
+          pipEl.classList.add('pip-spin');
+          setTimeout(() => pipEl.classList.remove('pip-spin'), 700);
+          // Burst of sparkles
+          for (let i = 0; i < 8; i++) {
+            setTimeout(() => spawnSparkle(posX + PIP_SIZE / 2, posY + PIP_SIZE / 2), i * 80);
+          }
+          break;
+        case 'surprised':
+          // Quick dash in a random direction
+          const dashAngle = Math.random() * Math.PI * 2;
+          velX = Math.cos(dashAngle) * 250;
+          velY = Math.sin(dashAngle) * 250;
+          break;
+        case 'sad':
+          // Slow drift downward
+          velX *= 0.3;
+          velY = 15;
+          break;
+        case 'angry':
+          // Twitchy shakes via rapid velocity toggling
+          const origVx = velX, origVy = velY;
+          let shakeCount = 0;
+          const shakeInterval = setInterval(() => {
+            velX = (shakeCount % 2 === 0 ? 1 : -1) * 120;
+            velY = (shakeCount % 2 === 0 ? -1 : 1) * 80;
+            shakeCount++;
+            if (shakeCount >= 8) {
+              clearInterval(shakeInterval);
+              velX = origVx;
+              velY = origVy;
+            }
+          }, 80);
+          break;
+      }
+    }
+
+    // ── Transform helper (with tilt/banking + squish) ─────────
+    let currentTilt = 0;
+    let squishX = 1, squishY = 1;
+
+    function applyTransform() {
+      const scaleStr = `scale(${squishX.toFixed(3)}, ${squishY.toFixed(3)})`;
+      const rotStr = `rotate(${currentTilt.toFixed(1)}deg)`;
+      pipEl.style.transform = `translate3d(${posX.toFixed(1)}px, ${posY.toFixed(1)}px, 0) ${rotStr} ${scaleStr}`;
+      if (bubbleEl.classList.contains('visible')) {
+        bubbleEl.style.left = (posX + PIP_SIZE / 2) + 'px';
+        bubbleEl.style.top = (posY - 12) + 'px';
+      }
+    }
+
+    let speechCountdown = 25; // seconds until first spontaneous quote
+
+    // ── Main animation loop ──────────────────────────────────────
+    function tick(t) {
+      if (!lastTick) lastTick = t;
+      const dt = Math.min((t - lastTick) / 1000, 0.1);
+      lastTick = t;
+
+      // Mood cycling
+      moodChangeTimer += dt;
+      if (moodChangeTimer >= MOOD_DURATION) {
+        moodChangeTimer = 0;
+        moodIndex = (moodIndex + 1) % MOODS.length;
+        const newMood = MOODS[moodIndex];
+        if (newMood !== currentMood) {
+          currentMood = newMood;
+          pipEl.innerHTML = pipSvg(currentMood);
+          triggerAcrobatics(currentMood);
+        }
+      }
+
+      // Countdown cooldowns
+      if (moodAnimCooldown > 0) moodAnimCooldown -= dt;
+
+      // Spontaneous gentle quotes
+      speechCountdown -= dt;
+      if (speechCountdown <= 0 && !menuOpen) {
+        speechCountdown = 45 + Math.random() * 35; // every 45-80 seconds
+        const q = GENTLE_QUOTES[Math.floor(Math.random() * GENTLE_QUOTES.length)];
+        showBubble(q, 5000);
+      }
+
+      if (!isDragging) {
+        // ── Idle pause logic ──
+        if (idlePause > 0) {
+          idlePause -= dt;
+          // Gently bob in place
+          posY += Math.sin(t / 400) * 0.3;
+          applyTransform();
+          requestAnimationFrame(tick);
+          return;
+        }
+
+        idleTimer += dt;
+        if (idleTimer > 8 + Math.random() * 7) {
+          idleTimer = 0;
+          idlePause = 1.5 + Math.random() * 3; // pause 1.5-4.5 seconds
+        }
+
+        // ── Organic direction changes (smooth curves) ──
+        nextTurnTime -= dt;
+        if (nextTurnTime <= 0) {
+          nextTurnTime = 2 + Math.random() * 4;
+          targetAngle += (Math.random() - 0.5) * Math.PI * 0.8;
+        }
+
+        // Smoothly steer toward target angle
+        const currentAngle = Math.atan2(velY, velX);
+        let angleDiff = targetAngle - currentAngle;
+        // Normalize to [-PI, PI]
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        const steerRate = 1.5 * dt;
+        const newAngle = currentAngle + angleDiff * steerRate;
+
+        // Speed based on mood
+        let baseSpeed;
+        switch (currentMood) {
+          case 'happy': baseSpeed = 55 + Math.sin(t / 2000) * 15; break;
+          case 'sad': baseSpeed = 20 + Math.sin(t / 3000) * 5; break;
+          case 'angry': baseSpeed = 80 + Math.sin(t / 800) * 25; break;
+          case 'surprised': baseSpeed = 70 + Math.sin(t / 1500) * 20; break;
+          default: baseSpeed = 45;
+        }
+
+        // Gradually approach target speed
+        const currentSpeed = Math.hypot(velX, velY);
+        const speed = currentSpeed + (baseSpeed - currentSpeed) * dt * 2;
+
+        velX = Math.cos(newAngle) * speed;
+        velY = Math.sin(newAngle) * speed;
+
+        // Move
+        posX += velX * dt;
+        posY += velY * dt;
+
+        // Bounce off edges with squish
+        const maxX = W() - PIP_SIZE - PAD;
+        const maxY = H() - PIP_SIZE - PAD;
+
+        let bounced = false;
+        if (posX <= PAD) { posX = PAD; velX = Math.abs(velX); targetAngle = Math.atan2(velY, velX); bounced = true; }
+        else if (posX >= maxX) { posX = maxX; velX = -Math.abs(velX); targetAngle = Math.atan2(velY, velX); bounced = true; }
+        if (posY <= PAD) { posY = PAD; velY = Math.abs(velY); targetAngle = Math.atan2(velY, velX); bounced = true; }
+        else if (posY >= maxY) { posY = maxY; velY = -Math.abs(velY); targetAngle = Math.atan2(velY, velX); bounced = true; }
+
+        // ── Squish & stretch ──
+        if (bounced) {
+          // Squash in the direction of impact
+          const hitHorizontal = (posX <= PAD || posX >= maxX);
+          if (hitHorizontal) { squishX = 0.75; squishY = 1.2; }
+          else { squishX = 1.2; squishY = 0.75; }
+        }
+        // Spring back to normal
+        squishX += (1 - squishX) * dt * 6;
+        squishY += (1 - squishY) * dt * 6;
+
+        // ── Tilt / banking ──
+        const tiltTarget = Math.max(-25, Math.min(25, velX * 0.3));
+        currentTilt += (tiltTarget - currentTilt) * dt * 4;
+      }
+
+      applyTransform();
+
+      // ── Sparkle trail ──
+      sparkleTimer += dt;
+      const sparkleInterval = currentMood === 'sad' ? 0.25 : 0.12;
+      if (sparkleTimer >= sparkleInterval && !isDragging) {
+        sparkleTimer = 0;
+        const speed = Math.hypot(velX, velY);
+        if (speed > 10) {
+          spawnSparkle(posX + PIP_SIZE / 2, posY + PIP_SIZE * 0.8);
+        }
+      }
+
+      // ── Mood particles (occasional) ──
+      if (Math.random() < dt * 0.4) {
+        spawnMoodParticle(currentMood, posX + PIP_SIZE / 2, posY + PIP_SIZE / 2);
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
+

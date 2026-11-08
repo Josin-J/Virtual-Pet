@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pip — your pocket ghost</title>
+  <meta name="theme-color" content="#f6f4ff">
+  <meta name="color-scheme" content="light dark">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body data-mood="happy">
+
+  <main id="welcome" class="welcome" hidden>
+    <div class="card welcome-card">
+      <div id="welcomePip" class="pip pip-small" role="img" aria-label="Pip, a friendly ghost wearing headphones"></div>
+      <h1>Meet Pip</h1>
+      <p class="muted">A little ghost who helps you feel happy, organized and stress-free. Share one Pip across all your devices.</p>
+
+      <div class="seg" role="group" aria-label="Choose how to start">
+        <button type="button" id="tabCreate" aria-pressed="true">Adopt Pip</button>
+        <button type="button" id="tabJoin" aria-pressed="false">Join with a code</button>
+      </div>
+
+      <form id="createForm" class="stack" autocomplete="off">
+        <label>Your name
+          <input name="deviceName" required maxlength="24" placeholder="e.g. Jamie" autocomplete="nickname">
+        </label>
+        <label>Pet name <span class="muted">(optional)</span>
+          <input name="petName" maxlength="20" placeholder="Pip">
+        </label>
+        <button class="primary" type="submit">Adopt Pip</button>
+      </form>
+
+      <form id="joinForm" class="stack" autocomplete="off" hidden>
+        <label>Join code
+          <input name="joinCode" required maxlength="9" placeholder="ABCD-EFGH" autocapitalize="characters" spellcheck="false" inputmode="text">
+        </label>
+        <label>Your name
+          <input name="deviceName" required maxlength="24" placeholder="e.g. Sam" autocomplete="nickname">
+        </label>
+        <button class="primary" type="submit">Join Pip</button>
+      </form>
+      <p id="welcomeError" class="error" role="alert"></p>
+    </div>
+  </main>
+
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <h1 id="petName">Pip</h1>
+      <span id="status" class="pill" data-state="connecting" role="status">Connecting…</span>
+    </header>
+
+    <section class="hero card" aria-label="Pip">
+      <div class="hero-actions">
+        <button type="button" id="floatToggleBtn" class="float-btn" aria-label="Let Pip float freely across the screen" title="Let Pip float">🚀 Float</button>
+      </div>
+      <div id="pipSlot" class="pip-slot">
+        <div id="pip" class="pip" role="img" aria-label="Pip looks happy" tabindex="0"></div>
+      </div>
+      <p id="bubble" class="bubble" aria-live="polite"></p>
+      <div class="emotes" role="group" aria-label="Interact with Pip">
+        <button type="button" data-mood="happy"><span aria-hidden="true">🤗</span> Pat</button>
+        <button type="button" data-mood="angry"><span aria-hidden="true">😠</span> Poke</button>
+        <button type="button" data-mood="surprised"><span aria-hidden="true">😮</span> Boo!</button>
+        <button type="button" data-mood="sad"><span aria-hidden="true">🥺</span> I feel low</button>
+      </div>
+    </section>
+
+    <div class="col">
+      <section class="card" aria-labelledby="todayH">
+        <h2 id="todayH">Today</h2>
+        <div class="progress"><progress id="prog" max="1" value="0" aria-label="Tasks completed"></progress><span id="progText" class="muted"></span></div>
+        <ul id="tasks" class="tasks"></ul>
+        <form id="taskForm" class="row" autocomplete="off">
+          <input id="taskInput" maxlength="80" placeholder="Add one gentle task…" aria-label="New task" required>
+          <button class="primary" type="submit">Add</button>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="careH">
+        <h2 id="careH">Care</h2>
+        <div class="row between">
+          <button type="button" id="waterBtn" class="soft"><span aria-hidden="true">💧</span> Drink water</button>
+          <span id="waterText" class="muted"></span>
+        </div>
+        <button type="button" id="breatheBtn" class="soft wide"><span aria-hidden="true">🌿</span> Take a breathing break</button>
+      </section>
+
+      <section class="card" aria-labelledby="shareH">
+        <h2 id="shareH">Share Pip</h2>
+        <p class="muted">Anyone with this code can join from their phone or computer and care for the same Pip.</p>
+        <div class="row">
+          <output id="code" class="code" aria-label="Join code"></output>
+          <button type="button" id="copyBtn" class="soft">Copy</button>
+        </div>
+        <ul id="members" class="members" aria-label="Devices"></ul>
+        <form id="renameForm" class="row" autocomplete="off" hidden>
+          <input id="renameInput" maxlength="20" placeholder="Rename pet" aria-label="Rename pet">
+          <button class="soft" type="submit">Save</button>
+        </form>
+        <button type="button" id="leaveBtn" class="link">Leave this Pip on this device</button>
+      </section>
+    </div>
+  </div>
+
+  <dialog id="breathe" aria-labelledby="breatheTitle">
+    <h2 id="breatheTitle">Breathe with Pip</h2>
+    <div id="orb" class="orb" aria-hidden="true"></div>
+    <p id="breatheLabel" class="breathe-label" aria-live="polite">Get comfy…</p>
+    <p id="breatheCount" class="muted"></p>
+    <button type="button" id="breatheStop" class="soft">Stop</button>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
