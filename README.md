@@ -1,5 +1,11 @@
 # 👻 Pip: Your Shared Pocket Ghost & Desktop Companion
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-virtual--pet--s72o.onrender.com-5b3df5?style=for-the-badge&logo=render)](https://virtual-pet-s72o.onrender.com)
+[![GitHub](https://img.shields.io/badge/GitHub-Josin--J%2FVirtual--Pet-181717?style=for-the-badge&logo=github)](https://github.com/Josin-J/Virtual-Pet)
+
+> 🌐 **Live Demo (Phone & PC):** **[https://virtual-pet-s72o.onrender.com](https://virtual-pet-s72o.onrender.com)**  
+> Care for Pip right now from your browser — adopt a pet or join an existing household with a code!
+
 Pip is a friendly, stress-free virtual ghost companion you can care for from your phone, browser, or desktop. Several devices can join using a 8-character code to care for the same Pip in real time.
 
 Zero external dependencies for the web server (uses Node's built-in `node:sqlite`). Includes an optional **Electron desktop companion** that lets Pip freely float and roam over your entire Windows desktop and other applications.
